@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        #hangman-display {
+            white-space: pre;
+            font-family: monospace;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to the Chatbot</h1>
+    <form id="ask-form">
+        <label for="question">Ask a question:</label>
+        <input type="text" id="question" name="question">
+        <button type="submit">Ask</button>
+    </form>
+    <p id="answer"></p>
+    
+    <h2>Teach the chatbot</h2>
+    <form id="teach-form">
+        <label for="teach-question">Question:</label>
+        <input type="text" id="teach-question" name="question">
+        <label for="answer">Answer:</label>
+        <input type="text" id="teach-answer" name="answer">
+        <button type="submit">Teach</button>
+    </form>
+    <p id="teach-message"></p>
+
+    <h2>Stored Questions and Answers</h2>
+    <button id="display-button">Display All</button>
+    <div id="questions-and-answers"></div>
+    
+    <h2>Reset Memory</h2>
+    <button id="reset-button">Reset</button>
+    <p id="reset-message"></p>
+
+    <h2>Play Hangman</h2>
+    <button id="hangman-start-button">Start New Game</button>
+    <div id="hangman-display"></div>
+    <input type="text" id="hangman-letter" placeholder="Guess a letter" maxlength="1">
+    <button id="hangman-guess-button">Guess</button>
+    <p id="hangman-message"></p>
+    <p id="hangman-status"></p>
+    
+    <script>
+        document.getElementById('ask-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            var question = document.getElementById('question').value;
+            fetch('/ask', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ question: question })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('answer').innerText = data.answer;
+            });
+        });
+
+        document.getElementById('teach-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            var question = document.getElementById('teach-question').value;
+            var answer = document.getElementById('teach-answer').value;
+            fetch('/teach', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ question: question, answer: answer })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('teach-message').innerText = data.message;
+            });
+        });
+
+        document.getElementById('display-button').addEventListener('click', function() {
+            fetch('/display')
+            .then(response => response.json())
+            .then(data => {
+                if (data.message) {
+                    document.getElementById('questions-and-answers').innerText = data.message;
+                } else {
+                    var qaList = data.questions_and_answers.map(qa => {
+                        return `<p>Question: ${qa[0]}<br>Answer: ${qa[1]}</p>`;
+                    }).join('<hr>');
+                    document.getElementById('questions-and-answers').innerHTML = qaList;
+                }
+            });
+        });
+
+        document.getElementById('reset-button').addEventListener('click', function() {
+            fetch('/reset', { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('reset-message').innerText = data.message;
+            });
+        });
+
+        let hangmanGameId;
+
+        document.getElementById('hangman-start-button').addEventListener('click', function() {
+            fetch('/hangman/start', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                hangmanGameId = data.game_id;
+                document.getElementById('hangman-display').innerText = data.hangman;
+                document.getElementById('hangman-status').innerText = data.game_state.display_word;
+                document.getElementById('hangman-message').innerText = '';
+            });
+        });
+
+        document.getElementById('hangman-guess-button').addEventListener('click', function() {
+            var letter = document.getElementById('hangman-letter').value;
+            fetch('/hangman/guess', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ game_id: hangmanGameId, letter: letter })
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('hangman-display').innerText = data.hangman;
+                document.getElementById('hangman-status').innerText = data.game_state.display_word;
+                if (data.message) {
+                    document.getElementById('hangman-message').innerText = data.message;
+                } else {
+                    document.getElementById('hangman-message').innerText = '';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
